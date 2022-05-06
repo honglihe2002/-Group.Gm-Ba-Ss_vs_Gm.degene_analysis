@@ -1,0 +1,30 @@
+#R包：DESeq2  (https://bioconductor.org/packages/release/bioc/html/DESeq2.html)
+脚本如下：
+
+library(edgeR)
+library(DESeq2)
+
+data_count = read.table("explevel/matrix_gene.count.txt", header=T, row.names=1, com='', check.names=F) 
+col_ordering = c(1,2,3,4,5,6)  #要进行比较的两组样本所在列  
+rnaseqMatrix = round(data_count[,col_ordering])
+
+rnaseqMatrix = rnaseqMatrix[rowSums(cpm(rnaseqMatrix) > 1) >= 2,]
+conditions = data.frame(conditions=factor(c(rep("Gm", 3), rep("Gm-Ba-Ss", 3)))) #设定分组及样本数
+
+rownames(conditions) = colnames(rnaseqMatrix)
+ddsFullCountTable <- DESeqDataSetFromMatrix(
+    countData = rnaseqMatrix,
+    colData = conditions,
+    design = ~ conditions)
+dds = DESeq(ddsFullCountTable)
+contrast=c("conditions","Gm","Gm-Ba-Ss")
+result_table = results(dds, contrast)
+result_table$pvalue[is.na(result_table$pvalue)]  <- 1
+result_table$padj[is.na(result_table$padj)]  <- 1
+res_all = data.frame(id=rownames(result_table),log2FC=result_table$logFC, pval=result_table$pvalue,padj=result_table$padj,check.names=F)
+write.table(res_all,  file='expldiff_analysis/Group.Gm-Ba-Ss_vs_Gm.degene_analysis.xls',  sep='\t', quote=F, row.names=F)
+
+#log2FC>0 表示基因在Gm-Ba-Ss组的表达量要高于Gm组，反之亦反 
+#得到文件：
+# Group.Gm-Ba-Ss_vs_Gm.degene_analysis.xls 差异分析结果表
+# 根据FC，pval，padj自行筛选差异基因 > deg.list
